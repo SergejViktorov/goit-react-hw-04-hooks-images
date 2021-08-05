@@ -43,6 +43,12 @@ export default function App({ largeImageURL }) {
 				const img = await api(searchName, currentPage)
 				setImages((prevState) => [...prevState, ...img.data.hits])
 				setLoading(false)
+				if (images.length > 0) {
+					window.scrollTo({
+						top: document.documentElement.scrollHeight,
+						behavior: 'smooth',
+					})
+				}
 			} catch (error) {
 				setErrors(error.response.status)
 				setLoading(false)
