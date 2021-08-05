@@ -1,5 +1,4 @@
-// import axios from 'axios'
-import React, { Component } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import 'modern-normalize'
 import s from './app.module.css'
 import { ToastContainer } from 'react-toastify'
@@ -12,111 +11,89 @@ import Modal from './Components/Modal'
 import Button from './Components/Button'
 import CustomLoader from './Components/Loader'
 
-class App extends Component {
-	state = {
-		image: [],
-		query: '',
-		errors: null,
-		loading: false,
-		currentPage: 1,
-		showModal: false,
-		modalImgProps: { largeImageURL: '', tags: '' },
-	}
+export default function App({ largeImageURL }) {
+	const [images, setImages] = useState([])
+	const [searchName, setSearchName] = useState('')
+	const [errors, setErrors] = useState(null)
+	const [loading, setLoading] = useState(false)
+	const [currentPage, setCurrentPage] = useState(1)
+	const [showModal, setShowModal] = useState(false)
+	const [modalImgProps, setModalImgProps] = useState('')
 
-	hendleFormSubmit = (query) => {
-		this.setState({ query })
-	}
+	const isFerstRenfer = useRef(true)
 
-	async componentDidUpdate(prevProps, prevState) {
-		if (prevState.query !== this.state.query) {
-			try {
-				this.setState({ loading: true, query: this.state.query })
-				const { query } = this.state
-				const img = await api(query)
-				this.setState({ image: img.data.hits, loading: false })
-			} catch (error) {
-				this.setState({ errors: error, loading: false })
-			}
-		}
-
-		if (prevState.currentPage !== this.state.currentPage) {
-			try {
-				this.setState({ loading: true, query: this.state.query })
-				const { query } = this.state
-				const { currentPage } = this.state
-
-				const img = await api(query, currentPage)
-
-				this.setState({
-					image: [...prevState.image, ...img.data.hits],
-					loading: false,
-				})
-
-				window.scrollTo({
-					top: document.documentElement.scrollHeight,
-					behavior: 'smooth',
-				})
-			} catch (error) {
-				this.setState({ errors: error.response.status, loading: false })
-			}
+	const hendleFormSubmit = (query) => {
+		if (searchName !== query) {
+			setSearchName(query)
+			setCurrentPage(1)
+			setImages([])
+			setErrors(null)
 		}
 	}
 
-	nextPage = () => {
-		this.setState({ currentPage: this.state.currentPage + 1 })
+	useEffect(() => {
+		if (isFerstRenfer.current) {
+			isFerstRenfer.current = false
+			return
+		}
+		async function fetchImg() {
+			try {
+				setLoading(true)
+				setSearchName(searchName)
+				const img = await api(searchName, currentPage)
+				setImages((prevState) => [...prevState, ...img.data.hits])
+				setLoading(false)
+			} catch (error) {
+				setErrors(error.response.status)
+				setLoading(false)
+			}
+		}
+		fetchImg()
+	}, [searchName, currentPage])
+
+	const nextPage = () => {
+		setCurrentPage((prevState) => prevState + 1)
 	}
 
-	resetPage = () => ({
-		currentPage: this.state.currentPage,
-	})
-
-	toggleModal = () => {
-		this.setState(({ showModal }) => ({
-			showModal: !showModal,
-		}))
+	const toggleModal = () => {
+		setShowModal((showModal) => !showModal)
 	}
 
-	handleImgClick = (props) => {
-		this.setState({ modalImgProps: props })
-		this.toggleModal()
-		console.log(props)
+	const handleImgClick = (largeImageURL) => {
+		setModalImgProps(largeImageURL)
+		toggleModal()
+		console.log(largeImageURL)
 	}
 
-	render() {
-		const { image, loading, errors, query, showModal } = this.state
-		const see = image.length
-		console.log('image', image.length)
-		const largeImageURL = this.state.modalImgProps
-		const content = errors ? (
-			<h2>Упс, ошибка {errors}</h2>
-		) : (
-			<>
-				<ImageGallery image={image} openModal={this.handleImgClick} />
-			</>
-		)
+	const see = images.length
 
-		const newContent =
-			query === '' ? <p>Enter what picture you want to find</p> : content
+	const content = errors ? (
+		<h2>Упс, ошибка {errors}</h2>
+	) : (
+		<>
+			<ImageGallery image={images} openModal={handleImgClick} />
+		</>
+	)
 
-		return (
-			<>
-				<div>
-					<Searchbar onSubmit={this.hendleFormSubmit} />
-					<ToastContainer position="top-right" autoClose={4000} />
+	const newContent =
+		searchName === '' ? <p>Enter what picture you want to find</p> : content
 
-					{newContent}
-					{loading && <CustomLoader />}
+	return (
+		<>
+			<div>
+				<Searchbar onSubmit={hendleFormSubmit} />
+				<ToastContainer position="top-right" autoClose={4000} />
 
-					{see > 0 && <Button onClick={this.nextPage} />}
-					{showModal && (
-						<Modal onClose={this.toggleModal}>
-							<img src={largeImageURL} alt="" className={s.ModalImg} />
-						</Modal>
-					)}
-				</div>
-			</>
-		)
-	}
+				{newContent}
+				{loading && <CustomLoader />}
+
+				{see > 0 && <Button onClick={nextPage} />}
+				{showModal && (
+					<Modal onClose={toggleModal}>
+						<img src={modalImgProps} alt="" className={s.ModalImg} />
+					</Modal>
+				)}
+			</div>
+		</>
+	)
 }
-
-export default App
